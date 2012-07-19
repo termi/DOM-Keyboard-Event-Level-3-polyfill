@@ -1,0 +1,17 @@
+# DOM Keyboard Event Level 3 polyfill
+
+## Status
+
+	Alpha
+
+## TODO:
+
+	* readme
+	* tests
+	* examples
+	* refactoring
+	* fixing more Opera 12- keyboard event bugs
+
+## Licence
+	
+	MIT
