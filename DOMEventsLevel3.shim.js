@@ -341,24 +341,26 @@ var _DOM_KEY_LOCATION_STANDARD      = 0x00 // Default or unknown location
 		0x5D: 'Menu',// 'Context Menu' from [OLD key-values-list]
 
 		// TODO: Test in WebKit
-		0x6A: { _key : 'Multiply', _char: false, _location: _DOM_KEY_LOCATION_NUMPAD },// or 'Asterisk' ?
-		0x6B: { _key : 'Add', _char: false, _location: _DOM_KEY_LOCATION_NUMPAD },
+		0x6A: { _key : 'Multiply', _char: '*', _location: _DOM_KEY_LOCATION_NUMPAD },// or 'Asterisk' ?
+		0x6B: { _key : 'Add', _char: '+', _location: _DOM_KEY_LOCATION_NUMPAD },
 		0x6C: { _key : 'Separator', _char: false,  _location: _DOM_KEY_LOCATION_NUMPAD },// ??? NumPad Enter ???
-		0x6D: { _key : 'Subtract', _char: false, _location: _DOM_KEY_LOCATION_NUMPAD },
-		0x6E: { _key : 'Decimal', _char: false, _location: _DOM_KEY_LOCATION_NUMPAD },
-		0x6F: { _key : 'Divide', _char: false, _location: _DOM_KEY_LOCATION_NUMPAD },
+		0x6D: { _key : 'Subtract', _char: '-', _location: _DOM_KEY_LOCATION_NUMPAD },
+		0x6E: { _key : 'Decimal', _char: '.', _location: _DOM_KEY_LOCATION_NUMPAD },
+		0x6F: { _key : 'Divide', _char: '/', _location: _DOM_KEY_LOCATION_NUMPAD },
 
 		// TODO: Test in WebKit
-		0x90: { _key : 'NumLock', _location: _DOM_KEY_LOCATION_NUMPAD },
+		0x90: { _key : 'NumLock', _char: false, _location: _DOM_KEY_LOCATION_NUMPAD },
 		0x91: 'ScrollLock',
 
-		// NOTE: Not exposed to browsers
-		0xA0: { _key : 'Shift', _location: _DOM_KEY_LOCATION_LEFT },
-		0xA1: { _key : 'Shift', _location: _DOM_KEY_LOCATION_RIGHT },
-		0xA2: { _key : 'Control', _location: _DOM_KEY_LOCATION_LEFT },
-		0xA3: { _key : 'Control', _location: _DOM_KEY_LOCATION_RIGHT },
-		0xA4: { _key : 'Alt', _location: _DOM_KEY_LOCATION_LEFT },
-		0xA5: { _key : 'Alt', _location: _DOM_KEY_LOCATION_RIGHT },
+		// NOTE: Not exposed to browsers so we don't need this
+		/*
+		0xA0: { _key : 'Shift', _char: false, _location: _DOM_KEY_LOCATION_LEFT },
+		0xA1: { _key : 'Shift', _char: false, _location: _DOM_KEY_LOCATION_RIGHT },
+		0xA2: { _key : 'Control', _char: false, _location: _DOM_KEY_LOCATION_LEFT },
+		0xA3: { _key : 'Control', _char: false, _location: _DOM_KEY_LOCATION_RIGHT },
+		0xA4: { _key : 'Alt', _char: false, _location: _DOM_KEY_LOCATION_LEFT },
+		0xA5: { _key : 'Alt', _char: false, _location: _DOM_KEY_LOCATION_RIGHT },
+		*/
 
 		0xB4: 'LaunchMail',
 		0xB5: 'SelectMedia',
@@ -391,6 +393,11 @@ var _DOM_KEY_LOCATION_STANDARD      = 0x00 // Default or unknown location
 		0xFB: 'Zoom',
 		0xFE: 'Clear'
 	}
+	, _IS_MAC = !!~(navigator.platform + "").indexOf("Mac")
+	, _BROWSER = {}
+	, __i
+	, _NEED_KEYCODE_BUGFIX
+	, _HAS_OPERA_DUBBLE_KEYPRESS_BUG
 ;
 // TODO: Test in WebKit
 VK_COMMON[0x60] = 
@@ -403,38 +410,77 @@ VK_COMMON[0x66] =
 VK_COMMON[0x67] = 
 VK_COMMON[0x68] = 
 VK_COMMON[0x69] = { _key: 0, _location: _DOM_KEY_LOCATION_NUMPAD };
-/*
 // TODO: Test in WebKit
-0x70: 'F1',
-0x71: 'F2',
-0x72: 'F3',
-0x73: 'F4',
-0x74: 'F5',
-0x75: 'F6',
-0x76: 'F7',
-0x77: 'F8',
-0x78: 'F9',
-0x79: 'F10',
-0x7A: 'F11',
-0x7B: 'F12',
-0x7C: 'F13',
-0x7D: 'F14',
-0x7E: 'F15',
-0x7F: 'F16',
-0x80: 'F17',
-0x81: 'F18',
-0x82: 'F19',
-0x83: 'F20',
-0x84: 'F21',
-0x85: 'F22',
-0x86: 'F23',
-0x87: 'F24',
-*/
-for(var __i = 112 ; __i < 136 ; ++__i)
-	VK_COMMON[__i] = "F" + (136 - __i);
+// 0x70 ~ 0x87: 'F1' ~ 'F24'
+for(__i = 135 ; __i > 111 ; --__i)
+    VK_COMMON[__i] = "F" + (__i - 111);
 
 //Special
-VK_COMMON[57351] = VK_COMMON[93];//Opera:: 'Menu'
+
+if(global["opera"]) {// Opera special cases
+	_NEED_KEYCODE_BUGFIX = true;
+	_HAS_OPERA_DUBBLE_KEYPRESS_BUG = true;//TODO::
+
+	/*
+	VK_COMMON[43] = VK_COMMON[0x6B];	// key:'Add', char:'+'
+	VK_COMMON[43]._keyCode = 107;
+	VK_COMMON[43]._needkeypress = true;	// instead of _key: 0
+	VK_COMMON[45] = VK_COMMON[0x6D];	// key:'Subtract', char:'-'
+	VK_COMMON[45]._keyCode = 109;
+	VK_COMMON[45]._needkeypress = true;	// instead of _key: 0
+	*/
+	VK_COMMON[57351] = VK_COMMON[93];	//'Menu'
+	VK_COMMON[0x3D] = {_key: 0, _keyCode: 187};	//'=' (US Standard ? need to ckeck it out)
+	VK_COMMON[0x6D] = {_key: 0, _keyCode: 189, /*not for 187 keyCode, but for 109 */_location: 3};	//'-' (US Standard ? need to ckeck it out)
+
+	if(_IS_MAC) {
+		/*TODO::
+		0x11: { keyIdentifier: 'Meta' },
+	    0xE030: { keyIdentifier: 'Control' }
+	    */
+	}
+}
+else {
+	//browser sniffing
+	_BROWSER["names"] = navigator.userAgent.toLowerCase().match(/(mozilla|compatible|chrome|webkit|safari)/gi);
+	__i = _BROWSER["names"] && _BROWSER["names"].length || 0;
+	while(__i-- > 0)_BROWSER[_BROWSER["names"][__i]] = true;
+
+	if(_BROWSER["mozilla"] && !_BROWSER["compatible"] && !_BROWSER["webkit"]) {// Mozilla special cases
+		_NEED_KEYCODE_BUGFIX = true;
+
+		VK_COMMON[0x6D] = {_key: 0, _char: '-', _charShifted: '_', _keyCode: 189};//(US Standard ? need to ckeck it out)
+		VK_COMMON[0x3D] = VK_COMMON[0x6B] = {_key: 0, _char: '=', _charShifted: '+', _keyCode: 187};//(US Standard ? need to ckeck it out)
+	/*
+	0x3B: { keyIdentifier: 'U+00BA', keyName: 'Semicolon', keyChar: ';', keyCharShifted: ':' }, // ; : (US Standard)
+	// TODO: Check keyIdentifier in WebKit for numpad
+	0xBB: { keyIdentifier: 'Add', keyName: 'Add', keyLocation: KeyboardEvent.DOM_KEY_LOCATION_NUMPAD, keyChar: '+' },
+	0xBD: { keyIdentifier: 'Subtract', keyName: 'Subtract', keyLocation: KeyboardEvent.DOM_KEY_LOCATION_NUMPAD, keyChar: '-' }
+	*/
+	}
+	else if(_BROWSER["safari"] && !_BROWSER["chrome"]) {// Safari WebKit special cases
+		/*TODO::
+		0x03: { keyIdentifier: 'Enter', keyName: 'Enter', keyChar: '\u000D' }, // old Safari
+		0x0A: { keyIdentifier: 'Enter', keyName: 'Enter', keyLocation: KeyboardEvent.DOM_KEY_LOCATION_MOBILE, keyChar: '\u000D' }, // iOS
+		0x19: { keyIdentifier: 'U+0009', keyName: 'Tab', keyChar: '\u0009'} // old Safari for Shift+Tab
+		*/
+		if(_IS_MAC) {
+			/*
+			0x5B: { keyIdentifier: 'Meta', keyLocation: KeyboardEvent.DOM_KEY_LOCATION_LEFT },
+			0x5D: { keyIdentifier: 'Meta', keyLocation: KeyboardEvent.DOM_KEY_LOCATION_RIGHT },
+			0xE5: { keyIdentifier: 'U+0051', keyName: 'Q', keyChar: 'Q'} // On alternate presses, Ctrl+Q sends this
+			*/
+		}
+	}
+	else if(_BROWSER["chrome"]) {// Chrome WebKit special cases
+		if(_IS_MAC) {
+			/*TODO::
+			0x5B: { keyIdentifier: 'Meta', keyLocation: KeyboardEvent.DOM_KEY_LOCATION_LEFT },
+			0x5D: { keyIdentifier: 'Meta', keyLocation: KeyboardEvent.DOM_KEY_LOCATION_RIGHT }
+			*/
+		}
+	}
+}
 
 
 var FAILED_KEYIDENTIFIER = {
@@ -446,6 +492,12 @@ var FAILED_KEYIDENTIFIER = {
 		'Win' : void 0, 	// from [OLD key-values-list] -> 'OS'
 		'Scroll' : void 0,	// from [OLD key-values-list] -> 'ScrollLock'
 		'Apps' : void 0,	// from [OLD key-values-list] -> 'Menu'
+
+		'U+0010' : void 0,	// [test this] -> 'Fn' ?? 'Function' ?
+		'U+001C' : void 0,	// [test this] -> 'Left'
+		'U+001D' : void 0,	// [test this] -> 'Right'
+		'U+001E' : void 0,	// [test this] -> 'Up'
+		'U+001F' : void 0,	// [test this] -> 'Down'
 
 		//From Opera impl
 		'Window' : void 0, 	// from [OLD key-values-list] -> 'OS'
@@ -509,9 +561,9 @@ VK_SPECIAL = {
 
 	// Safari WebKit special cases
 	'safari': {
-		0x03: 'Enter', keyName: 'Enter', keyChar: '\u000D', // old Safari
-		0x0A: 'Enter', keyName: 'Enter', keyLocation: _KeyboardEvent.DOM_KEY_LOCATION_MOBILE, keyChar: '\u000D', // iOS
-		0x19: 'U+0009', keyName: 'Tab', keyChar: '\u0009'} // old Safari for Shift+Tab
+		0x03: 'Enter', _keyCode: 13, keyName: 'Enter', keyChar: '\u000D', // old Safari
+		0x0A: 'Enter', _keyCode: 13, keyName: 'Enter', keyLocation: _KeyboardEvent.DOM_KEY_LOCATION_MOBILE, keyChar: '\u000D', // iOS
+		0x19: 'Tab', _keyCode: 9, keyName: 'Tab', keyChar: '\u0009'} // old Safari for Shift+Tab
 	},
 	'safari-mac': {
 		0x5B: 'Meta', keyLocation: _DOM_KEY_LOCATION_LEFT,
@@ -561,7 +613,7 @@ var _Event_prototype = global["Event"].prototype
   	/** @type {number} Previous keyboard index 1 - keydown, 2 - keypress, 3 - keyup */
   , _previous_keyboardEvent_index
 
-  , _valid_initKeyboardEvent_dictionary_properties = {
+  , _keyboardEvent_properties_dictionary = {
   		"char" : "",
   		"key" : "",
   		"location" : _DOM_KEY_LOCATION_STANDARD,
@@ -620,11 +672,11 @@ function _KeyboardEvent(type, dict) {// KeyboardEvent  constructor
 	  , _prop_name
 	;
 
-	for(_prop_name in _valid_initKeyboardEvent_dictionary_properties)if(_hasOwnProperty(_valid_initKeyboardEvent_dictionary_properties, _prop_name)) {
+	for(_prop_name in _keyboardEvent_properties_dictionary)if(_hasOwnProperty(_keyboardEvent_properties_dictionary, _prop_name)) {
 		localDict[_prop_name] = _prop_name in dict && dict[_prop_name] !== void 0 ?
 			dict[_prop_name]
 			:
-			_valid_initKeyboardEvent_dictionary_properties[_prop_name]
+			_keyboardEvent_properties_dictionary[_prop_name]
 		;
 	}
 
@@ -690,7 +742,7 @@ function _KeyboardEvent(type, dict) {// KeyboardEvent  constructor
 
 	if(!success_init)e.initEvent(type, _bubbles, _cancelable, global);
 
-	for(_prop_name in _valid_initKeyboardEvent_dictionary_properties)if(_hasOwnProperty(_valid_initKeyboardEvent_dictionary_properties, _prop_name)) {
+	for(_prop_name in _keyboardEvent_properties_dictionary)if(_hasOwnProperty(_keyboardEvent_properties_dictionary, _prop_name)) {
 		if(e[_prop_name] != localDict[_prop_name]) {
 			delete e[_prop_name];
 			_Object_defineProperty(e, _prop_name, { writable : true, "value" : localDict[_prop_name] });
@@ -763,7 +815,7 @@ _Object_defineProperty(_KeyboardEvent_prototype, "char", {
 			value = "";
 		}
 		else if(hasShifed_and_Unshifed_value) {
-			value = (needLowerCase ? value._char : value._charShifted) || "";
+			value = (needLowerCase ? value._char : value._charShifted || value._char) || "";
 		}
 		else {
 			if("keyIdentifier" in thisObj && _helper_isRight_keyIdentifier(thisObj["keyIdentifier"])) {
@@ -835,9 +887,10 @@ function _keyDownHandler(e) {
 	  , thisObj = this._this
 	  , listener
 	  , _
+	  , special = e.ctrlKey || e.altKey
 	;
 
-	if(_keyCode in VK_COMMON && VK_COMMON[_keyCode]._key !== 0 || e["__key"]) {
+	if(special || _keyCode in VK_COMMON && VK_COMMON[_keyCode]._key !== 0 || e["__key"]) {
 		listener = this._listener;
 
 		if(typeof listener !== "function") {
@@ -865,6 +918,9 @@ function _keyDown_via_keyPress_Handler(e) {
 	if(_ && _shim_event_keyCodeUUID in _) {
 		_keyCode = _[_shim_event_keyCodeUUID];
 		delete _[_shim_event_keyCodeUUID];
+		if(_NEED_KEYCODE_BUGFIX && _keyCode in VK_COMMON && VK_COMMON[_keyCode]._keyCode) {
+			_keyCode = VK_COMMON[_keyCode]._keyCode;
+		}
 
 		_event = new _KeyboardEvent("keydown", e);
 		delete _event["which"];
@@ -963,7 +1019,7 @@ function _keyDown_via_keyPress_Handler(e) {
 	}
 })
 
-//clear
+//cleaning
 _DOM_KEY_LOCATION_LEFT = _DOM_KEY_LOCATION_RIGHT = _DOM_KEY_LOCATION_NUMPAD = _DOM_KEY_LOCATION_MOBILE = _DOM_KEY_LOCATION_JOYSTICK = void 0;
 
 //export
