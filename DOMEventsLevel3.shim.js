@@ -393,7 +393,8 @@ var _DOM_KEY_LOCATION_STANDARD      = 0x00 // Default or unknown location
 		0xFB: 'Zoom',
 		0xFE: 'Clear'
 	}
-	, _IS_MAC = !!~(navigator.platform + "").indexOf("Mac")
+	, _userAgent_ = global.navigator.userAgent.toLowerCase()
+	, _IS_MAC = !!~(global.navigator.platform + "").indexOf("Mac")
 	, _BROWSER = {}
 	, __i
 	, _NEED_KEYCODE_BUGFIX
@@ -429,7 +430,7 @@ if(global["opera"]) {// Opera special cases
 	VK_COMMON[45]._keyCode = 109;
 	VK_COMMON[45]._needkeypress = true;	// instead of _key: 0
 	*/
-	VK_COMMON[57351] = VK_COMMON[93];	//'Menu'
+	VK_COMMON[57351] = VK_COMMON[0x5D];	//'Menu'
 	VK_COMMON[0x3D] = {_key: 0, _keyCode: 187};	//'=' (US Standard ? need to ckeck it out)
 	VK_COMMON[0x6D] = {_key: 0, _keyCode: 189, /*not for 187 keyCode, but for 109 */_location: 3};	//'-' (US Standard ? need to ckeck it out)
 
@@ -442,21 +443,24 @@ if(global["opera"]) {// Opera special cases
 }
 else {
 	//browser sniffing
-	_BROWSER["names"] = navigator.userAgent.toLowerCase().match(/(mozilla|compatible|chrome|webkit|safari)/gi);
+	_BROWSER["names"] = _userAgent_.match(/(mozilla|compatible|chrome|webkit|safari)/gi);
 	__i = _BROWSER["names"] && _BROWSER["names"].length || 0;
 	while(__i-- > 0)_BROWSER[_BROWSER["names"][__i]] = true;
 
 	if(_BROWSER["mozilla"] && !_BROWSER["compatible"] && !_BROWSER["webkit"]) {// Mozilla special cases
 		_NEED_KEYCODE_BUGFIX = true;
 
-		VK_COMMON[0x6D] = {_key: 0, _char: '-', _charShifted: '_', _keyCode: 189};//(US Standard ? need to ckeck it out)
-		VK_COMMON[0x3D] = VK_COMMON[0x6B] = {_key: 0, _char: '=', _charShifted: '+', _keyCode: 187};//(US Standard ? need to ckeck it out)
-	/*
-	0x3B: { keyIdentifier: 'U+00BA', keyName: 'Semicolon', keyChar: ';', keyCharShifted: ':' }, // ; : (US Standard)
-	// TODO: Check keyIdentifier in WebKit for numpad
-	0xBB: { keyIdentifier: 'Add', keyName: 'Add', keyLocation: KeyboardEvent.DOM_KEY_LOCATION_NUMPAD, keyChar: '+' },
-	0xBD: { keyIdentifier: 'Subtract', keyName: 'Subtract', keyLocation: KeyboardEvent.DOM_KEY_LOCATION_NUMPAD, keyChar: '-' }
-	*/
+		//Firefox version
+	    _BROWSER._version = +(_userAgent_.match(/firefox\/([0-9]+)/) || [])[1];
+
+	    VK_COMMON[0x3D] = {_key: 0, _char: '=', _charShifted: '+', _keyCode: 187};//(US Standard ? need to ckeck it out)
+	    if(_BROWSER._version < 15) {
+	        VK_COMMON[0x6B] = VK_COMMON[0x3D];
+	        VK_COMMON[0x6D] = {_key: 0, _char: '-', _charShifted: '_', _keyCode: 189};//(US Standard ? need to ckeck it out)
+	    }
+	    else {
+	    	//Can't handle Subtract(key="-",location="3") and Add(key="+",location="3") keys in FF < 15
+	    }
 	}
 	else if(_BROWSER["safari"] && !_BROWSER["chrome"]) {// Safari WebKit special cases
 		/*TODO::
@@ -649,8 +653,18 @@ var _Event_prototype = global["Event"].prototype
   , _hasOwnProperty = _unSafeBind.call(Function.prototype.call, Object.prototype.hasOwnProperty)
 
   , _try_initKeyboardEvent = true
-;
 
+  , _initKeyboardEvent_type
+;
+/*
+[{"location" : 3}, {"keyLocation" : 3}]
+try {
+	_initKeyboardEvent_type = document.createEvent("KeyboardEvent");
+}
+catch(e) {
+
+}
+*/
 /**
  * http://html5labs.com/dom4events/#constructors-keyboardevent
  * @constructor
@@ -716,7 +730,8 @@ function _KeyboardEvent(type, dict) {// KeyboardEvent  constructor
 		/*
 		http://stackoverflow.com/a/8490774/1437207
 		For Webkit-based browsers (Safari/Chrome), the event initialization call should look a bit differently (see https://bugs.webkit.org/show_bug.cgi?id=13368):
-		initKeyboardEvent(in DOMString typeArg, 
+		initKeyboardEvent(
+			  in DOMString typeArg, 
               in boolean canBubbleArg, 
               in boolean cancelableArg, 
               in views::AbstractView viewArg, 
@@ -727,6 +742,20 @@ function _KeyboardEvent(type, dict) {// KeyboardEvent  constructor
               in boolean altKeyArg, 
               in boolean metaKeyArg, 
               in boolean altGraphKeyArg);
+		*/
+		/*
+		http://code.google.com/p/chromium/issues/detail?id=52408
+		event.initKeyboardEvent( 
+			   "keypress",        //  in DOMString typeArg,                                                           
+               true,             //  in boolean canBubbleArg,                                                        
+               true,             //  in boolean cancelableArg,                                                       
+               null,             //  in nsIDOMAbstractView viewArg,  Specifies UIEvent.view. This value may be null.     
+               false,            //  in boolean ctrlKeyArg,                                                               
+               false,            //  in boolean altKeyArg,                                                        
+               false,            //  in boolean shiftKeyArg,                                                      
+               false,            //  in boolean metaKeyArg,                                                       
+                13,              //  in unsigned long keyCodeArg,                                                      
+                0);              //  in unsigned long charCodeArg); 
 		*/
 		if(_try_initKeyboardEvent) {
 			try {
@@ -925,11 +954,11 @@ function _keyDown_via_keyPress_Handler(e) {
 		_event = new _KeyboardEvent("keydown", e);
 		delete _event["which"];
 		delete _event["keyCode"];
+		delete _event["keyLocation"];//???
 		delete _event["__location"];
-		delete _event["keyLocation"];
 		_Object_defineProperty(_event, "which", {"value" : _keyCode});
 		_Object_defineProperty(_event, "keyCode", {"value" : _keyCode});
-		_event["location"] = _getter_KeyboardEvent_location.call(_event);//forse getter's
+		_event["__location"] = _getter_KeyboardEvent_location.call(_event);
 
 		if(!thisObj.dispatchEvent(_event)) {
 			e.preventDefault();
