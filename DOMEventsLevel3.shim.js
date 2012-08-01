@@ -12,10 +12,9 @@
  * @version 0.2
  * TODO::
  * 0. refactoring and JSDoc's
- * 1. Example as http://www.w3.org/2002/09/tests/keys.html
- * 2. Bug fixing:
- *   - FF: {key: "+", location: 0} and {key: "-", location: 0} as {key: "Add", location: 3} and {key: "Subtract", location: 3}
+ * 1. Bug fixing:
  *   - FF: char "[" (keyCode:91) or "\"(keyCode:92) for key "OS"
+ * 2. repeat property
  *
  * TODO Links:
  * 1. http://help.dottoro.com/ljlwfxum.php | onkeypress event | keypress event
@@ -596,8 +595,21 @@ VK_SPECIAL = {
 */
 
 var _Event_prototype = global["Event"].prototype
+
   , _KeyboardEvent_prototype = global["KeyboardEvent"] && global["KeyboardEvent"].prototype || _Event_prototype
+
+  , _Event_prototype__native_key_getter
+
+  , _Event_prototype__native_char_getter
+
+  , _Event_prototype__native_location_getter
+
+  , _Event_prototype__native_keyCode_getter
+
   , _Object_defineProperty = Object.defineProperty
+
+  , _Object_getOwnPropertyDescriptor = Object.getOwnPropertyDescriptor
+
   , KEYBOARD_EVENTS = {
 		"keydown" : void 0,
 		"keyup" : void 0,
@@ -628,10 +640,13 @@ var _Event_prototype = global["Event"].prototype
   		"repeat" : false,
   		"locale" : "",
 
-  		"detail" : null,
+  		"detail" : 0,
   		"bubbles" : false,
   		"cancelable" : false
     }
+
+    /** @const */
+  , _Event_has_stopImmediatePropagation = "stopImmediatePropagation" in document.createEvent("Event")
 
     /** @const */
   , _Array_slice = Array.prototype.slice
@@ -654,8 +669,36 @@ var _Event_prototype = global["Event"].prototype
 
   , _try_initKeyboardEvent = true
 
-  , _initKeyboardEvent_type
+  , _getter_KeyboardEvent_location
+
+  , _initKeyboardEvent_isWebKit_or_IE_type = (function(e) {
+  			e.initKeyboardEvent(/*in DOMString typeArg*/"keyup", /*in boolean canBubbleArg*/false, /*in boolean cancelableArg*/false, /*in views::AbstractView viewArg*/global, 
+  				/*[test]in DOMString keyIdentifierArg*/"+",
+  				/*[test]in unsigned long keyLocationArg*/3,
+  				/*[test]in boolean ctrlKeyArg*/true,
+  					/*in boolean shiftKeyArg*/false, /*in boolean altKeyArg*/false, /*in boolean metaKeyArg*/false, /*in boolean altGraphKeyArg*/false)
+  			return (e.keyIdentifier || e["key"] == "+" && e["keyLocation"] || e["location"] == 3) && (e.ctrlKey ? 1 : e.shiftKey ? 3 : 2);
+		})(document.createEvent("KeyboardEvent"))
+
+  , canOverwrite_keyCode
+
+  , tmp
 ;
+
+if(_Object_getOwnPropertyDescriptor) {
+	(tmp = _Object_getOwnPropertyDescriptor(KeyboardEvent.prototype, "key")) && //IE9 has key property
+		(_Event_prototype__native_key_getter = tmp["get"]);
+
+	(tmp = _Object_getOwnPropertyDescriptor(KeyboardEvent.prototype, "char")) &&//IE9 has key property
+		(_Event_prototype__native_char_getter = tmp["get"]);
+
+	(tmp = _Object_getOwnPropertyDescriptor(KeyboardEvent.prototype, "location")) && //IE9 has key property
+		(_Event_prototype__native_location_getter = tmp["get"]);
+
+	(tmp = _Object_getOwnPropertyDescriptor(KeyboardEvent.prototype, "keyCode")) && //IE9 doesn't allow overwrite "keyCode" and "charCode"
+		(_Event_prototype__native_keyCode_getter = tmp["get"]);
+}
+
 /*
 [{"location" : 3}, {"keyLocation" : 3}]
 try {
@@ -698,7 +741,7 @@ function _KeyboardEvent(type, dict) {// KeyboardEvent  constructor
 	  , _shiftKey = localDict["shiftKey"]
 	  , _altKey = localDict["altKey"]
 	  , _metaKey = localDict["metaKey"]
-	  , modifiersListArg = ("" + _ctrlKey && "Control" + _shiftKey && " Shift" + _altKey && " Alt" + _metaKey && " Meta").trim()
+	  , modifiersListArg = ((_ctrlKey && "Control" + _shiftKey && " Shift" + _altKey && " Alt" + _metaKey && " Meta") || "").trim()
 
 	  , _key = localDict["key"]
 	  , _char = localDict["char"]
@@ -714,6 +757,8 @@ function _KeyboardEvent(type, dict) {// KeyboardEvent  constructor
 	_keyCode = localDict["keyCode"] = localDict["keyCode"] || _keyCode;
 	localDict["which"] = localDict["which"] || _keyCode;
 
+	if(!canOverwrite_keyCode)e["__keyCode"] = _keyCode;
+
 	
 	if("initKeyEvent" in e) {
 		//https://developer.mozilla.org/en/DOM/event.initKeyEvent
@@ -724,42 +769,83 @@ function _KeyboardEvent(type, dict) {// KeyboardEvent  constructor
 		success_init = true;
 	}
 	else if("initKeyboardEvent" in e) {
-		//http://msdn.microsoft.com/en-us/library/ie/ff975297(v=vs.85).aspx
+		//
 		//https://developer.mozilla.org/en/DOM/KeyboardEvent#initKeyboardEvent()
 
-		/*
-		http://stackoverflow.com/a/8490774/1437207
-		For Webkit-based browsers (Safari/Chrome), the event initialization call should look a bit differently (see https://bugs.webkit.org/show_bug.cgi?id=13368):
-		initKeyboardEvent(
-			  in DOMString typeArg, 
-              in boolean canBubbleArg, 
-              in boolean cancelableArg, 
-              in views::AbstractView viewArg, 
-              in DOMString keyIdentifierArg, 
-              in unsigned long keyLocationArg, 
-              in boolean ctrlKeyArg, 
-              in boolean shiftKeyArg, 
-              in boolean altKeyArg, 
-              in boolean metaKeyArg, 
-              in boolean altGraphKeyArg);
-		*/
-		/*
-		http://code.google.com/p/chromium/issues/detail?id=52408
-		event.initKeyboardEvent( 
-			   "keypress",        //  in DOMString typeArg,                                                           
-               true,             //  in boolean canBubbleArg,                                                        
-               true,             //  in boolean cancelableArg,                                                       
-               null,             //  in nsIDOMAbstractView viewArg,  Specifies UIEvent.view. This value may be null.     
-               false,            //  in boolean ctrlKeyArg,                                                               
-               false,            //  in boolean altKeyArg,                                                        
-               false,            //  in boolean shiftKeyArg,                                                      
-               false,            //  in boolean metaKeyArg,                                                       
-                13,              //  in unsigned long keyCodeArg,                                                      
-                0);              //  in unsigned long charCodeArg); 
-		*/
 		if(_try_initKeyboardEvent) {
 			try {
-				e.initKeyboardEvent(type, _bubbles, _cancelable, global, _char, _key, _location, modifiersListArg, localDict["repeat"], "");			
+				if(_initKeyboardEvent_isWebKit_or_IE_type == 1) {
+					/*
+					http://stackoverflow.com/a/8490774/1437207
+					For Webkit-based browsers (Safari/Chrome), the event initialization call should look a bit differently (see https://bugs.webkit.org/show_bug.cgi?id=13368):
+					initKeyboardEvent(
+						  in DOMString typeArg, 
+			              in boolean canBubbleArg, 
+			              in boolean cancelableArg, 
+			              in views::AbstractView viewArg, 
+			              in DOMString keyIdentifierArg, 
+			              in unsigned long keyLocationArg, 
+			              in boolean ctrlKeyArg, 
+			              in boolean shiftKeyArg, 
+			              in boolean altKeyArg, 
+			              in boolean metaKeyArg, 
+			              in boolean altGraphKeyArg
+			            );
+					*/
+					e.initKeyboardEvent(type, _bubbles, _cancelable, global, _key, _location, _ctrlKey, _shiftKey, _altKey, _metaKey, false);
+				}
+				else if(_initKeyboardEvent_isWebKit_or_IE_type == 2) {
+					/*
+					http://msdn.microsoft.com/en-us/library/ie/ff975297(v=vs.85).aspx
+					eventType [in] Type: BSTR One of the following values, or a user-defined custom event type: keydown,keypress,keyup
+					canBubble [in] Type: VARIANT_BOOL
+					cancelable [in] Type: VARIANT_BOOL
+					viewArg [in] Type: IHTMLWindow2 The active window object or null. This value is returned in the view property of the event.
+					keyArg [in] Type: BSTR The key identifier. This value is returned in the key property of the event. 
+					locationArg [in] Type: unsigned long The location of the key on the device. This value is returned in the location property of the event. 
+					modifiersListArg [in] Type: BSTR A space-separated list of any of the following values: Alt,AltGraph,CapsLock,Control,Meta,NumLock,Scroll,Shift,Win
+					repeat [in] Type: VARIANT_BOOL The number of times this key has been pressed. This value is returned in the repeat property of the event. 
+					locale [in] Type: BSTR The locale name. This value is returned in the locale attribute of the event. 
+					*/
+					e.initKeyboardEvent(type, _bubbles, _cancelable, global, _key, modifiersListArg, _keyCode, localDict["repeat"], localDict["locale"]);
+				}
+				else if(_initKeyboardEvent_isWebKit_or_IE_type == 3) {
+					/*
+					http://code.google.com/p/chromium/issues/detail?id=52408
+					event.initKeyboardEvent( 
+						   "keypress",        //  in DOMString typeArg,                                                           
+			               true,             //  in boolean canBubbleArg,                                                        
+			               true,             //  in boolean cancelableArg,                                                       
+			               null,             //  in nsIDOMAbstractView viewArg,  Specifies UIEvent.view. This value may be null.     
+			               false,            //  in boolean ctrlKeyArg,                                                               
+			               false,            //  in boolean altKeyArg,                                                        
+			               false,            //  in boolean shiftKeyArg,                                                      
+			               false,            //  in boolean metaKeyArg,                                                       
+			                13,              //  in unsigned long keyCodeArg,                                                      
+			                0);              //  in unsigned long charCodeArg
+			            ); 
+					*/
+					e.initKeyboardEvent(type, _bubbles, _cancelable, global, _ctrlKey, _shiftKey, _altKey, _metaKey, _keyCode, _keyCode);
+				}
+				else {
+					/*
+					http://www.w3.org/TR/DOM-Level-3-Events/#events-KeyboardEvent-initKeyboardEvent
+					https://developer.mozilla.org/en/DOM/KeyboardEvent#initKeyboardEvent()
+					void initKeyboardEvent(
+					  in DOMString typeArg,
+					  in boolean canBubbleArg,
+					  in boolean cancelableArg,
+					  in views::AbstractView viewArg,
+					  in DOMString charArg,
+					  in DOMString keyArg,
+					  in unsigned long locationArg,
+					  in DOMString modifiersListArg,
+					  in boolean repeat,
+					  in DOMString localeArg
+					);
+					*/
+					e.initKeyboardEvent(type, _bubbles, _cancelable, global, _char, _key, _location, modifiersListArg, localDict["repeat"], localDict["locale"]);
+				}
 				success_init = true;
 			}
 			catch(__e__) {
@@ -790,6 +876,24 @@ _KeyboardEvent["DOM_KEY_LOCATION_MOBILE"]        = _DOM_KEY_LOCATION_MOBILE;
 _KeyboardEvent["DOM_KEY_LOCATION_JOYSTICK"]      = _DOM_KEY_LOCATION_JOYSTICK;
 _KeyboardEvent.prototype = _KeyboardEvent_prototype;
 
+
+tmp = new _KeyboardEvent("keyup");
+delete tmp["keyCode"];
+_Object_defineProperty(tmp, "keyCode", { "writable" : true, "value" : 9 });
+if(!(canOverwrite_keyCode = tmp.keyCode == 9) && _Event_prototype__native_keyCode_getter) {
+	_Object_defineProperty(_KeyboardEvent_prototype, "keyCode", {
+		"enumerable" : true,
+		"configurable" : true,
+		"get" : function() {
+			if("__keyCode" in this)return this["__keyCode"];
+
+			return _Event_prototype__native_keyCode_getter.call(this);
+		}
+	});	
+}
+else _Event_prototype__native_keyCode_getter = void 0;
+
+
 function _helper_isRight_keyIdentifier(_keyIdentifier) {
 	return _keyIdentifier && !(_keyIdentifier in FAILED_KEYIDENTIFIER) && _keyIdentifier.substring(0, 2) !== "U+";
 }
@@ -799,6 +903,11 @@ _Object_defineProperty(_KeyboardEvent_prototype, "key", {
 	"configurable" : true,
 	"get" : function() {
 		var thisObj = this;
+
+		if(_Event_prototype__native_key_getter) {
+			thisObj["__key"] = true;//just an indicator
+			return _Event_prototype__native_key_getter.call(thisObj);
+		}
 
 		if("__key" in thisObj)return thisObj["__key"];
 
@@ -827,7 +936,15 @@ _Object_defineProperty(_KeyboardEvent_prototype, "char", {
 	"enumerable" : true,
 	"configurable" : true,
 	"get" : function() {
-		var thisObj = this;
+		var thisObj = this
+		  , value
+		;
+
+		if(_Event_prototype__native_char_getter && (value = _Event_prototype__native_char_getter.call(thisObj)) !== null) {
+			//unfortunately after initKeyboardEvent _Event_prototype__native_char_getter starting to return "null"
+			thisObj["__char"] = value;//so save 'true' char
+			return value;
+		}
 
 		if("__char" in thisObj)return thisObj["__char"];
 
@@ -859,8 +976,10 @@ _Object_defineProperty(_KeyboardEvent_prototype, "char", {
 		return this["__char"] = value;
 	}
 });
-function _getter_KeyboardEvent_location() {
+_getter_KeyboardEvent_location = function() {
 	var thisObj = this;
+
+	if(_Event_prototype__native_location_getter)return _Event_prototype__native_location_getter.call(this);
 
 	if("__location" in thisObj)return thisObj["__location"];
 
@@ -871,6 +990,12 @@ function _getter_KeyboardEvent_location() {
 	  , value
 	;
 
+	/*Not working with _KeyboardEvent function and do we realy need this anyway?
+	if(thisObj.type == "keypress") {
+		//TODO:: tests
+		value = 0;
+	}
+	else */
 	if("keyLocation" in thisObj) {
 		value = thisObj["keyLocation"];
 	}
@@ -887,39 +1012,18 @@ _Object_defineProperty(_KeyboardEvent_prototype, "location", {
 	"get" : _getter_KeyboardEvent_location
 });
 
-
-function _keyUp_via_keyPress_Handler(e) {
-	var thisObj = this
-	  , _ = thisObj["_"] || (thisObj["_"] = {})
-	;
-
-	_[_shim_event_keyUUID] = e["key"];
-	_[_shim_event_charUUID] = e["char"];
-}
-function _first_keyUp(e) {
-	var thisObj = this
-	  , _ = thisObj["_"]
-	;
-
-	if(_shim_event_keyUUID in _) {
-		e["__key"] = _[_shim_event_keyUUID];
-		delete _[_shim_event_keyUUID];
-	}
-	if(_shim_event_charUUID in _) {
-		e["__char"] = _[_shim_event_charUUID];
-		delete _[_shim_event_charUUID];
-	}
-}
 function _keyDownHandler(e) {
 	//debugger
 	var _keyCode = e.which || e.keyCode
 	  , thisObj = this._this
 	  , listener
-	  , _
+	  , _ = thisObj["_"] || (thisObj["_"] = {})
 	  , special = e.ctrlKey || e.altKey
 	;
 
 	if(special || _keyCode in VK_COMMON && VK_COMMON[_keyCode]._key !== 0 || e["__key"]) {
+		_["_noneed"] = true;
+
 		listener = this._listener;
 
 		if(typeof listener !== "function") {
@@ -932,8 +1036,13 @@ function _keyDownHandler(e) {
 		listener.apply(thisObj, arguments);
 	}
 	else {
-		_ = thisObj["_"] || (thisObj["_"] = {});
+		_["_noneed"] = false;
 		_[_shim_event_keyCodeUUID] = _keyCode;
+
+		//Fix Webkit keyLocation bug ("i", "o" and others keys "keyLocation" in 'keypress' event == 3. Why?)
+		if("keyLocation" in e) {//TODO:: tests
+			_["_keyLocation"] = e.keyLocation;
+		}
 	}
 }
 function _keyDown_via_keyPress_Handler(e) {
@@ -942,13 +1051,22 @@ function _keyDown_via_keyPress_Handler(e) {
 	  , thisObj = this
 	  , _ = thisObj["_"]
 	  , _event
+	  , need__stopImmediatePropagation__and__preventDefault
 	;
+
+	if(e["__stopNow"])return;
 
 	if(_ && _shim_event_keyCodeUUID in _) {
 		_keyCode = _[_shim_event_keyCodeUUID];
 		delete _[_shim_event_keyCodeUUID];
 		if(_NEED_KEYCODE_BUGFIX && _keyCode in VK_COMMON && VK_COMMON[_keyCode]._keyCode) {
 			_keyCode = VK_COMMON[_keyCode]._keyCode;
+		}
+
+		//Fix Webkit keyLocation bug ("i", "o" and others keys "keyLocation" in 'keypress' event == 3. Why?)
+		if("keyLocation" in e && "_keyLocation" in _) {//TODO:: tests
+			delete e.keyLocation;
+			e.keyLocation = _["_keyLocation"];
 		}
 
 		_event = new _KeyboardEvent("keydown", e);
@@ -958,10 +1076,32 @@ function _keyDown_via_keyPress_Handler(e) {
 		delete _event["__location"];
 		_Object_defineProperty(_event, "which", {"value" : _keyCode});
 		_Object_defineProperty(_event, "keyCode", {"value" : _keyCode});
+		if(!canOverwrite_keyCode)_event["__keyCode"] = _keyCode;
 		_event["__location"] = _getter_KeyboardEvent_location.call(_event);
+	
+		if(!_Event_prototype__native_key_getter) {//Filter for IE9
+	        _ = (VK_COMMON[_keyCode] || (_ = VK_COMMON[_keyCode] = {}));
+	        e.shiftKey ? (_._charShifted = _event["char"]) : (_._char = _event["char"]);
+	        _._key = _._charShifted && _._char && "" || 0;//_._key == 0 - filter in _keyDownHandler
+	    }
 
-		if(!thisObj.dispatchEvent(_event)) {
-			e.preventDefault();
+		need__stopImmediatePropagation__and__preventDefault = !thisObj.dispatchEvent(_event);
+	}
+	else {
+		_keyCode = e.keyCode;
+		//handle key what not generate character's key
+		need__stopImmediatePropagation__and__preventDefault = (_ = VK_COMMON[_keyCode]) && (typeof _ == "object" ? _._key || "" : _).length > 1;
+	}
+
+	if(need__stopImmediatePropagation__and__preventDefault) {
+		e.preventDefault();
+
+		if(_Event_has_stopImmediatePropagation) {
+			e.stopImmediatePropagation();
+		}
+		else {
+			e["__stopNow"] = true;
+			e.stopPropagation();
 		}
 	}
 }
@@ -980,7 +1120,7 @@ function _keyDown_via_keyPress_Handler(e) {
 			  , _events_countUUID
 			;
 
-			if(type === "keydown" || type === "keyup") {
+			if(type === "keydown") {
 				//debugger
 				_eventsUUID = _event_eventsUUID + (useCapture ? "-" : "") + type;
 				_event_UUID = _eventsUUID + (listener[_event_handleUUID] || (listener[_event_handleUUID] = ++UUID));
@@ -992,18 +1132,10 @@ function _keyDown_via_keyPress_Handler(e) {
 
 				_[_events_countUUID] = (_[_events_countUUID] || 0) + 1;
 
-				if(type === "keydown") {
-					listener = _[_event_UUID] = _unSafeBind.call(_keyDownHandler, {_listener : listener, _this : this});
+				listener = _[_event_UUID] = _unSafeBind.call(_keyDownHandler, {_listener : listener, _this : this});
 
-					if(_[_events_countUUID] == 1) {
-						old_addEventListener.call(thisObj, "keypress", _keyDown_via_keyPress_Handler, true);
-					}
-				}
-				else if(type === "keyup") {
-					if(_[_events_countUUID] == 1) {
-						old_addEventListener.call(thisObj, "keypress", _keyUp_via_keyPress_Handler, true);
-						old_addEventListener.call(thisObj, "keyup", _first_keyUp, true);
-					}
+				if(_[_events_countUUID] == 1) {
+					old_addEventListener.call(thisObj, "keypress", _keyDown_via_keyPress_Handler, true);
 				}
 			}
 
@@ -1018,7 +1150,7 @@ function _keyDown_via_keyPress_Handler(e) {
 			  , _events_countUUID
 			;
 
-			if(type === "keydown" || type === "keyup") {
+			if(type === "keydown") {
 				_eventsUUID = _event_eventsUUID + (useCapture ? "-" : "") + type;
 				_event_UUID = _eventsUUID + listener[_event_handleUUID];
 				_events_countUUID = _eventsUUID + "__count";
@@ -1027,18 +1159,10 @@ function _keyDown_via_keyPress_Handler(e) {
 				if(_event_UUID && _ && _[_events_countUUID]) {
 					--_[_events_countUUID];
 
-					if(type === "keydown") {
-						if(listener = _[_event_UUID]) {
-							delete _[_event_UUID];
+					if(listener = _[_event_UUID]) {
+						delete _[_event_UUID];
 
-							return old_removeEventListener.call(thisObj, type, listener, useCapture);
-						}
-					}
-					else if(type === "keyup") {
-						if(_[_events_countUUID] == 0) {
-							old_removeEventListener.call(thisObj, "keypress", _keyUp_via_keyPress_Handler, true);
-							old_removeEventListener.call(thisObj, "keyup", _first_keyUp, true);
-						}
+						return old_removeEventListener.call(thisObj, type, listener, useCapture);
 					}
 				}
 			}
@@ -1049,7 +1173,9 @@ function _keyDown_via_keyPress_Handler(e) {
 })
 
 //cleaning
-_DOM_KEY_LOCATION_LEFT = _DOM_KEY_LOCATION_RIGHT = _DOM_KEY_LOCATION_NUMPAD = _DOM_KEY_LOCATION_MOBILE = _DOM_KEY_LOCATION_JOYSTICK = void 0;
+_DOM_KEY_LOCATION_LEFT = _DOM_KEY_LOCATION_RIGHT = _DOM_KEY_LOCATION_NUMPAD = _DOM_KEY_LOCATION_MOBILE = _DOM_KEY_LOCATION_JOYSTICK = 
+	_Object_getOwnPropertyDescriptor = tmp =
+	void 0;
 
 //export
 global["KeyboardEvent"] = _KeyboardEvent;
