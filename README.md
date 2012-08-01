@@ -4,6 +4,11 @@
 
 	Alpha
 
+## Examples
+
+	http://h123.ru/-/tests/KeyboardEvent/
+	http://jsfiddle.net/termi/yjc5F/
+
 # Goal
 
 * Normalize Keyroard Events across modern browsers
