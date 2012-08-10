@@ -672,12 +672,15 @@ var _Event_prototype = global["Event"].prototype
   , _getter_KeyboardEvent_location
 
   , _initKeyboardEvent_isWebKit_or_IE_type = (function(e) {
-  			e.initKeyboardEvent(/*in DOMString typeArg*/"keyup", /*in boolean canBubbleArg*/false, /*in boolean cancelableArg*/false, /*in views::AbstractView viewArg*/global, 
-  				/*[test]in DOMString keyIdentifierArg*/"+",
-  				/*[test]in unsigned long keyLocationArg*/3,
-  				/*[test]in boolean ctrlKeyArg*/true,
-  					/*in boolean shiftKeyArg*/false, /*in boolean altKeyArg*/false, /*in boolean metaKeyArg*/false, /*in boolean altGraphKeyArg*/false)
-  			return (e.keyIdentifier || e["key"] == "+" && e["keyLocation"] || e["location"] == 3) && (e.ctrlKey ? 1 : e.shiftKey ? 3 : 2);
+  			try {
+	  			e.initKeyboardEvent(/*in DOMString typeArg*/"keyup", /*in boolean canBubbleArg*/false, /*in boolean cancelableArg*/false, /*in views::AbstractView viewArg*/global, 
+	  				/*[test]in DOMString keyIdentifierArg*/"+",
+	  				/*[test]in unsigned long keyLocationArg*/3,
+	  				/*[test]in boolean ctrlKeyArg*/true,
+	  					/*in boolean shiftKeyArg*/false, /*in boolean altKeyArg*/false, /*in boolean metaKeyArg*/false, /*in boolean altGraphKeyArg*/false);
+  				return (e.keyIdentifier || e["key"] == "+" && e["keyLocation"] || e["location"] == 3) && (e.ctrlKey ? 1 : e.shiftKey ? 3 : 2);
+  			}
+  			catch(__e__) { }
 		})(document.createEvent("KeyboardEvent"))
 
   , canOverwrite_keyCode
@@ -686,17 +689,16 @@ var _Event_prototype = global["Event"].prototype
 ;
 
 if(_Object_getOwnPropertyDescriptor) {
-	(tmp = _Object_getOwnPropertyDescriptor(KeyboardEvent.prototype, "key")) && //IE9 has key property
-		(_Event_prototype__native_key_getter = tmp["get"]);
+	tmp = {};
 
-	(tmp = _Object_getOwnPropertyDescriptor(KeyboardEvent.prototype, "char")) &&//IE9 has key property
-		(_Event_prototype__native_char_getter = tmp["get"]);
-
-	(tmp = _Object_getOwnPropertyDescriptor(KeyboardEvent.prototype, "location")) && //IE9 has key property
-		(_Event_prototype__native_location_getter = tmp["get"]);
-
-	(tmp = _Object_getOwnPropertyDescriptor(KeyboardEvent.prototype, "keyCode")) && //IE9 doesn't allow overwrite "keyCode" and "charCode"
-		(_Event_prototype__native_keyCode_getter = tmp["get"]);
+	//IE9 has key property
+	_Event_prototype__native_key_getter = (_Object_getOwnPropertyDescriptor(_KeyboardEvent_prototype, "key") || tmp)["get"];
+	//IE9 has key property
+	_Event_prototype__native_char_getter = (_Object_getOwnPropertyDescriptor(_KeyboardEvent_prototype, "char") || tmp)["get"];
+	//IE9 has key property
+	_Event_prototype__native_location_getter = (_Object_getOwnPropertyDescriptor(_KeyboardEvent_prototype, "location") || tmp)["get"];
+	//IE9 doesn't allow overwrite "keyCode" and "charCode"
+	_Event_prototype__native_keyCode_getter = (_Object_getOwnPropertyDescriptor(_KeyboardEvent_prototype, "keyCode") || tmp)["get"];
 }
 
 /*
@@ -888,8 +890,23 @@ if(!(canOverwrite_keyCode = tmp.keyCode == 9) && _Event_prototype__native_keyCod
 			if("__keyCode" in this)return this["__keyCode"];
 
 			return _Event_prototype__native_keyCode_getter.call(this);
+		},
+		"set" : function(newValue) {
+			return this["__keyCode"] = isNaN(newValue) ? 0 : newValue;
 		}
 	});	
+	_Object_defineProperty(_KeyboardEvent_prototype, "charCode", {
+		"enumerable" : true,
+		"configurable" : true,
+		"get" : function() {
+			if("__charCode" in this)return this["__charCode"];
+
+			return _Event_prototype__native_keyCode_getter.call(this);
+		},
+		"set" : function(newValue) {
+			return this["__charCode"] = isNaN(newValue) ? 0 : newValue;
+ 		}
+ 	});	
 }
 else _Event_prototype__native_keyCode_getter = void 0;
 
