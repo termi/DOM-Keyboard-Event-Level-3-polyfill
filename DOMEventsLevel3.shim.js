@@ -729,11 +729,12 @@ function _KeyboardEvent(type, dict) {// KeyboardEvent  constructor
 
 	var localDict = {}
 	  , _prop_name
+	  , _prop_value
 	;
 
 	for(_prop_name in _keyboardEvent_properties_dictionary)if(_hasOwnProperty(_keyboardEvent_properties_dictionary, _prop_name)) {
-		localDict[_prop_name] = _prop_name in dict && dict[_prop_name] !== void 0 ?
-			dict[_prop_name]
+		localDict[_prop_name] = _prop_name in dict && (_prop_value = dict[_prop_name]) !== void 0 ?
+			_prop_value
 			:
 			_keyboardEvent_properties_dictionary[_prop_name]
 		;
@@ -810,6 +811,7 @@ function _KeyboardEvent(type, dict) {// KeyboardEvent  constructor
 					locale [in] Type: BSTR The locale name. This value is returned in the locale attribute of the event. 
 					*/
 					e.initKeyboardEvent(type, _bubbles, _cancelable, global, _key, modifiersListArg, _keyCode, localDict["repeat"], localDict["locale"]);
+					e["__char"] = _char;
 				}
 				else if(_initKeyboardEvent_isWebKit_or_IE_type == 3) {
 					/*
@@ -869,7 +871,8 @@ function _KeyboardEvent(type, dict) {// KeyboardEvent  constructor
 	if(!("isTrusted" in e))e.isTrusted = false;
 
 	return e;
-};
+}
+
 _KeyboardEvent["DOM_KEY_LOCATION_STANDARD"]      = _DOM_KEY_LOCATION_STANDARD; // Default or unknown location
 _KeyboardEvent["DOM_KEY_LOCATION_LEFT"]          = _DOM_KEY_LOCATION_LEFT; // e.g. Left Alt key
 _KeyboardEvent["DOM_KEY_LOCATION_RIGHT"]         = _DOM_KEY_LOCATION_RIGHT; // e.g. Right Alt key
@@ -969,8 +972,10 @@ _Object_defineProperty(_KeyboardEvent_prototype, "char", {
 
 		var _keyCode = thisObj.which || thisObj.keyCode
 		  , notKeyPress = thisObj.type != "keypress"
-		  , value = notKeyPress && VK_COMMON[_keyCode]
-		  , hasShifed_and_Unshifed_value = typeof value == "object" && (typeof value._char != "undefined" || typeof value._charShifted != "undefined")
+		  , hasShifed_and_Unshifed_value =
+				typeof (value = notKeyPress && VK_COMMON[_keyCode]) == "object"
+				&&
+				(typeof value._char != "undefined" || typeof value._charShifted != "undefined")
 		  , needLowerCase = (notKeyPress || hasShifed_and_Unshifed_value) && !thisObj.shiftKey
 		;
 
@@ -1022,7 +1027,7 @@ _getter_KeyboardEvent_location = function() {
 	}
 
 	return this["__location"] = value;
-}
+};
 _Object_defineProperty(_KeyboardEvent_prototype, "location", {
 	"enumerable" : true,
 	"configurable" : true,
@@ -1187,7 +1192,7 @@ function _keyDown_via_keyPress_Handler(e) {
 			return old_removeEventListener.call(this, type, listener, useCapture);
 		};
 	}
-})
+});
 
 //cleaning
 _DOM_KEY_LOCATION_LEFT = _DOM_KEY_LOCATION_RIGHT = _DOM_KEY_LOCATION_NUMPAD = _DOM_KEY_LOCATION_MOBILE = _DOM_KEY_LOCATION_JOYSTICK = 
