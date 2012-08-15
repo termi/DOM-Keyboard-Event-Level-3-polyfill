@@ -398,18 +398,12 @@ var _DOM_KEY_LOCATION_STANDARD      = 0x00 // Default or unknown location
 	, __i
 	, _NEED_KEYCODE_BUGFIX
 	, _HAS_OPERA_DUBBLE_KEYPRESS_BUG
+	, tmp
 ;
 // TODO: Test in WebKit
-VK_COMMON[0x60] = 
-VK_COMMON[0x61] = 
-VK_COMMON[0x62] = 
-VK_COMMON[0x63] = 
-VK_COMMON[0x64] = 
-VK_COMMON[0x65] = 
-VK_COMMON[0x66] = 
-VK_COMMON[0x67] = 
-VK_COMMON[0x68] = 
-VK_COMMON[0x69] = { _key: 0, _location: _DOM_KEY_LOCATION_NUMPAD };
+tmp = { _key: 0, _location: _DOM_KEY_LOCATION_NUMPAD };
+for(__i = 0x69 ; __i > 0x59 ; --__i)
+    VK_COMMON[__i] = tmp;
 // TODO: Test in WebKit
 // 0x70 ~ 0x87: 'F1' ~ 'F24'
 for(__i = 135 ; __i > 111 ; --__i)
@@ -418,6 +412,7 @@ for(__i = 135 ; __i > 111 ; --__i)
 //Special
 
 if(global["opera"]) {// Opera special cases
+	//TODO: for Win only?
 	_NEED_KEYCODE_BUGFIX = true;
 	_HAS_OPERA_DUBBLE_KEYPRESS_BUG = true;//TODO::
 
@@ -430,8 +425,10 @@ if(global["opera"]) {// Opera special cases
 	VK_COMMON[45]._needkeypress = true;	// instead of _key: 0
 	*/
 	VK_COMMON[57351] = VK_COMMON[0x5D];	//'Menu'
-	VK_COMMON[0x3D] = {_key: 0, _keyCode: 187};	//'=' (US Standard ? need to ckeck it out)
-	VK_COMMON[0x6D] = {_key: 0, _keyCode: 189, /*not for 187 keyCode, but for 109 */_location: 3};	//'-' (US Standard ? need to ckeck it out)
+	VK_COMMON[187] = VK_COMMON[0x3D] = {_key: 0, _keyCode: 187};	//'=' (US Standard ? need to ckeck it out)
+	VK_COMMON[189] = VK_COMMON[0x6D] = {_key: 0, _keyCode: 189, /*not for 187 keyCode, but for 109 */_location: 3};//todo: location=3 only for win? //'-' (US Standard ? need to ckeck it out)
+	(VK_COMMON[219] = VK_COMMON[0x5B])._keyCode = 91;
+	(VK_COMMON[220] = VK_COMMON[0x5C])._keyCode = 92;
 
 	if(_IS_MAC) {
 		/*TODO::
@@ -486,7 +483,7 @@ else {
 }
 
 
-var FAILED_KEYIDENTIFIER = {
+var FAILED_KEYIDENTIFIER = {//webkit
 		'U+0008' : void 0,	// -> 'Backspace'
 		'U+0009' : void 0,	// -> 'Tab'
 		'U+0020' : void 0,	// -> 'Spacebar'
@@ -645,7 +642,9 @@ var _Event_prototype = global["Event"].prototype
   		"cancelable" : false
     }
 
-    /** @const */
+    /** @const
+     * Opera lt 12.50 has no event.stopImmediatePropagation
+     * */
   , _Event_has_stopImmediatePropagation = "stopImmediatePropagation" in document.createEvent("Event")
 
     /** @const */
@@ -674,18 +673,18 @@ var _Event_prototype = global["Event"].prototype
   , _initKeyboardEvent_isWebKit_or_IE_type = (function(e) {
   			try {
 	  			e.initKeyboardEvent(/*in DOMString typeArg*/"keyup", /*in boolean canBubbleArg*/false, /*in boolean cancelableArg*/false, /*in views::AbstractView viewArg*/global, 
-	  				/*[test]in DOMString keyIdentifierArg*/"+",
-	  				/*[test]in unsigned long keyLocationArg*/3,
-	  				/*[test]in boolean ctrlKeyArg*/true,
+	  				/*[test]in DOMString keyIdentifierArg*/"+", //webkit event.keyIdentifier | IE9 event.key
+	  				/*[test]in unsigned long keyLocationArg*/3, //webkit event.keyIdentifier | IE9 event.location
+	  				/*[test]in boolean ctrlKeyArg*/true,        //webkit event.shiftKey | old webkit event.ctrlKey | IE9 event.modifiersList
 	  					/*in boolean shiftKeyArg*/false, /*in boolean altKeyArg*/false, /*in boolean metaKeyArg*/false, /*in boolean altGraphKeyArg*/false);
-  				return (e.keyIdentifier || e["key"] == "+" && e["keyLocation"] || e["location"] == 3) && (e.ctrlKey ? 1 : e.shiftKey ? 3 : 2);
+  				return ((e["keyIdentifier"] || e["key"]) == "+" && (e["keyLocation"] || e["location"]) == 3) && (e.ctrlKey ? 1 : e.shiftKey ? 3 : 2);
   			}
   			catch(__e__) { }
 		})(document.createEvent("KeyboardEvent"))
 
   , canOverwrite_keyCode
 
-  , tmp
+  , ovewrite_keyCode_which_charCode
 ;
 
 if(_Object_getOwnPropertyDescriptor) {
@@ -760,10 +759,14 @@ function _KeyboardEvent(type, dict) {// KeyboardEvent  constructor
 	_keyCode = localDict["keyCode"] = localDict["keyCode"] || _keyCode;
 	localDict["which"] = localDict["which"] || _keyCode;
 
-	if(!canOverwrite_keyCode)e["__keyCode"] = _keyCode;
+	if(!canOverwrite_keyCode) {//IE9
+		e["__keyCode"] = _keyCode;
+		e["__charCode"] = _keyCode;
+		e["__witch"] = _keyCode;
+	}
 
 	
-	if("initKeyEvent" in e) {
+	if("initKeyEvent" in e) {//FF
 		//https://developer.mozilla.org/en/DOM/event.initKeyEvent
 
 		e.initKeyEvent(type, _bubbles, _cancelable, global, 
@@ -796,6 +799,7 @@ function _KeyboardEvent(type, dict) {// KeyboardEvent  constructor
 			            );
 					*/
 					e.initKeyboardEvent(type, _bubbles, _cancelable, global, _key, _location, _ctrlKey, _shiftKey, _altKey, _metaKey, false);
+					e["__char"] = _char;
 				}
 				else if(_initKeyboardEvent_isWebKit_or_IE_type == 2) {
 					/*
@@ -911,7 +915,20 @@ if(!(canOverwrite_keyCode = tmp.keyCode == 9) && _Event_prototype__native_keyCod
  		}
  	});	
 }
-else _Event_prototype__native_keyCode_getter = void 0;
+else {
+	_Event_prototype__native_keyCode_getter = void 0;
+
+	/*ovewrite_keyCode_which_charCode = function(key) {
+		//["which", "keyCode", "charCode"].forEach
+		var _event = this["e"]
+			, _keyCode = this["k"]
+			;
+		if(!_event || !_keyCode)return;
+
+		delete _event[key];
+		_Object_defineProperty(_event, key, {value : _keyCode});
+	}*/
+}
 
 
 function _helper_isRight_keyIdentifier(_keyIdentifier) {
@@ -924,7 +941,7 @@ _Object_defineProperty(_KeyboardEvent_prototype, "key", {
 	"get" : function() {
 		var thisObj = this;
 
-		if(_Event_prototype__native_key_getter) {
+		if(_Event_prototype__native_key_getter) {//IE9
 			thisObj["__key"] = true;//just an indicator
 			return _Event_prototype__native_key_getter.call(thisObj);
 		}
@@ -960,7 +977,7 @@ _Object_defineProperty(_KeyboardEvent_prototype, "char", {
 		  , value
 		;
 
-		if(_Event_prototype__native_char_getter && (value = _Event_prototype__native_char_getter.call(thisObj)) !== null) {
+		if(_Event_prototype__native_char_getter && (value = _Event_prototype__native_char_getter.call(thisObj)) !== null) {//IE9
 			//unfortunately after initKeyboardEvent _Event_prototype__native_char_getter starting to return "null"
 			thisObj["__char"] = value;//so save 'true' char
 			return value;
@@ -972,21 +989,23 @@ _Object_defineProperty(_KeyboardEvent_prototype, "char", {
 
 		var _keyCode = thisObj.which || thisObj.keyCode
 		  , notKeyPress = thisObj.type != "keypress"
+		  , value_is_object = typeof (value = notKeyPress && VK_COMMON[_keyCode]) == "object"
 		  , hasShifed_and_Unshifed_value =
-				typeof (value = notKeyPress && VK_COMMON[_keyCode]) == "object"
+				value_is_object
 				&&
-				(typeof value._char != "undefined" || typeof value._charShifted != "undefined")
+				(value._char !== void 0 || value._charShifted !== void 0)
 		  , needLowerCase = (notKeyPress || hasShifed_and_Unshifed_value) && !thisObj.shiftKey
 		;
 
-		if(value && (typeof value !== "object" || value._char === false)) {
+		if(value && (!value_is_object || value._char === false)) {
+			//For special keys event.char is empty string (or "Undeterminade" as in spec)
 			value = "";
 		}
 		else if(hasShifed_and_Unshifed_value) {
 			value = (needLowerCase ? value._char : value._charShifted || value._char) || "";
 		}
 		else {
-			if("keyIdentifier" in thisObj && _helper_isRight_keyIdentifier(thisObj["keyIdentifier"])) {
+			if("keyIdentifier" in thisObj && _helper_isRight_keyIdentifier(thisObj["keyIdentifier"])) {//webkit
 				value = "";
 			}
 			else {
@@ -1001,7 +1020,9 @@ _Object_defineProperty(_KeyboardEvent_prototype, "char", {
 _getter_KeyboardEvent_location = function() {
 	var thisObj = this;
 
-	if(_Event_prototype__native_location_getter)return _Event_prototype__native_location_getter.call(this);
+	if(_Event_prototype__native_location_getter) {//IE9
+		return _Event_prototype__native_location_getter.call(this);
+	}
 
 	if("__location" in thisObj)return thisObj["__location"];
 
@@ -1018,7 +1039,7 @@ _getter_KeyboardEvent_location = function() {
 		value = 0;
 	}
 	else */
-	if("keyLocation" in thisObj) {
+	if("keyLocation" in thisObj) {//webkit
 		value = thisObj["keyLocation"];
 	}
 	else {
@@ -1041,9 +1062,15 @@ function _keyDownHandler(e) {
 	  , listener
 	  , _ = thisObj["_"] || (thisObj["_"] = {})
 	  , special = e.ctrlKey || e.altKey
+	  , vkCommon = VK_COMMON[_keyCode]
 	;
 
-	if(special || _keyCode in VK_COMMON && VK_COMMON[_keyCode]._key !== 0 || e["__key"]) {
+	/*TODO: testing
+	if(canOverwrite_keyCode && vkCommon && vkCommon._keyCode && e.keyCode != vkCommon._keyCode) {
+		["which", "keyCode", "charCode"].forEach(ovewrite_keyCode_which_charCode, {"e" : e, "k" : vkCommon._keyCode});
+	}*/
+
+	if(special || vkCommon && vkCommon._key !== 0 || e["__key"]) {
 		_["_noneed"] = true;
 
 		listener = this._listener;
@@ -1086,37 +1113,51 @@ function _keyDown_via_keyPress_Handler(e) {
 		}
 
 		//Fix Webkit keyLocation bug ("i", "o" and others keys "keyLocation" in 'keypress' event == 3. Why?)
-		if("keyLocation" in e && "_keyLocation" in _) {//TODO:: tests
+		if("keyLocation" in e && "_keyLocation" in _) {//webkit//TODO:: tests
 			delete e.keyLocation;
 			e.keyLocation = _["_keyLocation"];
 		}
 
 		_event = new _KeyboardEvent("keydown", e);
 		delete _event["which"];
-		delete _event["keyCode"];
-		delete _event["keyLocation"];//???
+		delete _event["keyLocation"];//webkit //TODO: need this???
 		delete _event["__location"];
 		_Object_defineProperty(_event, "which", {"value" : _keyCode});
-		_Object_defineProperty(_event, "keyCode", {"value" : _keyCode});
-		if(!canOverwrite_keyCode)_event["__keyCode"] = _keyCode;
+		if(canOverwrite_keyCode) {//Not IE9
+			delete _event["keyCode"];
+			_Object_defineProperty(_event, "keyCode", {"value" : _keyCode});
+		}
+		else {//IE9
+			_event["__keyCode"] = _keyCode;
+		}
 		_event["__location"] = _getter_KeyboardEvent_location.call(_event);
 	
-		if(!_Event_prototype__native_key_getter) {//Filter for IE9
+		if(!_Event_prototype__native_key_getter) {//Not IE9
 	        _ = (VK_COMMON[_keyCode] || (_ = VK_COMMON[_keyCode] = {}));
 	        e.shiftKey ? (_._charShifted = _event["char"]) : (_._char = _event["char"]);
 	        _._key = _._charShifted && _._char && "" || 0;//_._key == 0 - filter in _keyDownHandler
 	    }
 
 		need__stopImmediatePropagation__and__preventDefault = !thisObj.dispatchEvent(_event);
+		//if need__stopImmediatePropagation__and__preventDefault == true -> preventDefault and stopImmediatePropagation
 	}
 	else {
 		_keyCode = e.keyCode;
 		//handle key what not generate character's key
-		need__stopImmediatePropagation__and__preventDefault = (_ = VK_COMMON[_keyCode]) && (typeof _ == "object" ? _._key || "" : _).length > 1;
+		need__stopImmediatePropagation__and__preventDefault = (
+			!e.ctrlKey &&
+			(_ = VK_COMMON[_keyCode]) && (typeof _ == "object" ? _._key || "" : _).length > 1
+		) ?
+			2//Only stopImmediatePropagation
+			:
+			0//Nothing
+		;
 	}
 
 	if(need__stopImmediatePropagation__and__preventDefault) {
-		e.preventDefault();
+		if(need__stopImmediatePropagation__and__preventDefault === true) {
+			e.preventDefault();
+		}
 
 		if(_Event_has_stopImmediatePropagation) {
 			e.stopImmediatePropagation();
