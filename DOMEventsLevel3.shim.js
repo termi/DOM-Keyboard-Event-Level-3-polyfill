@@ -9,12 +9,13 @@
 // @check_types
 // ==/ClosureCompiler==
 /**
- * @version 0.2
+ * @version 0.3
  * TODO::
  * 0. refactoring and JSDoc's
  * 1. Bug fixing:
  *   - FF: char "[" (keyCode:91) or "\"(keyCode:92) for key "OS"
  * 2. repeat property
+ * 3. preventDefault for keypress for special keys (Ctrl+c, shift+a, etc) for Opera lt 12.50
  *
  * TODO Links:
  * 1. http://help.dottoro.com/ljlwfxum.php | onkeypress event | keypress event
@@ -402,7 +403,7 @@ var _DOM_KEY_LOCATION_STANDARD      = 0x00 // Default or unknown location
 ;
 // TODO: Test in WebKit
 tmp = { _key: 0, _location: _DOM_KEY_LOCATION_NUMPAD };
-for(__i = 0x69 ; __i > 0x59 ; --__i)
+for(__i = 0x69 ; __i > 0x5F ; --__i)
     VK_COMMON[__i] = tmp;
 // TODO: Test in WebKit
 // 0x70 ~ 0x87: 'F1' ~ 'F24'
@@ -426,9 +427,13 @@ if(global["opera"]) {// Opera special cases
 	*/
 	VK_COMMON[57351] = VK_COMMON[0x5D];	//'Menu'
 	VK_COMMON[187] = VK_COMMON[0x3D] = {_key: 0, _keyCode: 187};	//'=' (US Standard ? need to ckeck it out)
-	VK_COMMON[189] = VK_COMMON[0x6D] = {_key: 0, _keyCode: 189, /*not for 187 keyCode, but for 109 */_location: 3};//todo: location=3 only for win? //'-' (US Standard ? need to ckeck it out)
+	VK_COMMON[189] = VK_COMMON[0x6D] = {_key: 0, _keyCode: 189/*not for 187 keyCode, but for 109 */, _location: 3};//todo: location=3 only for win? //'-' (US Standard ? need to ckeck it out)
+	/*
+	Unusable for Opera due to key '[' has keyCode=219 and key '\' has keyCode=220
+	TODO: filtering by keypress event. 'OS' key has no keypress event
 	(VK_COMMON[219] = VK_COMMON[0x5B])._keyCode = 91;
 	(VK_COMMON[220] = VK_COMMON[0x5C])._keyCode = 92;
+	*/
 
 	if(_IS_MAC) {
 		/*TODO::
@@ -607,6 +612,17 @@ var _Event_prototype = global["Event"].prototype
 
   , _Object_getOwnPropertyDescriptor = Object.getOwnPropertyDescriptor
 
+  , getObjectPropertyGetter = function(obj, prop) {
+		/* FF throw Error{message: "Illegal operation on WrappedNative prototype object", name: "NS_ERROR_XPC_BAD_OP_ON_WN_PROTO", result: 2153185292}
+		 *  when Object.getOwnPropertyDescriptor(KeyboardEvent.prototype, "location")
+		 *  so using __lookupGetter__ instead
+		 */
+		return "__lookupGetter__" in obj ?
+			obj.__lookupGetter__(prop) :
+			_Object_getOwnPropertyDescriptor ? (_Object_getOwnPropertyDescriptor(obj, prop) || {})["get"] : void 0
+		;
+	}
+
   , KEYBOARD_EVENTS = {
 		"keydown" : void 0,
 		"keyup" : void 0,
@@ -649,7 +665,7 @@ var _Event_prototype = global["Event"].prototype
 
     /** @const */
   , _Array_slice = Array.prototype.slice
-  
+
 	/** Use native "bind" or unsafe bind for service and performance needs
 	 * @const
 	 * @param {Object} object
@@ -672,7 +688,7 @@ var _Event_prototype = global["Event"].prototype
 
   , _initKeyboardEvent_isWebKit_or_IE_type = (function(e) {
   			try {
-	  			e.initKeyboardEvent(/*in DOMString typeArg*/"keyup", /*in boolean canBubbleArg*/false, /*in boolean cancelableArg*/false, /*in views::AbstractView viewArg*/global, 
+	  			e.initKeyboardEvent(/*in DOMString typeArg*/"keyup", /*in boolean canBubbleArg*/false, /*in boolean cancelableArg*/false, /*in views::AbstractView viewArg*/global,
 	  				/*[test]in DOMString keyIdentifierArg*/"+", //webkit event.keyIdentifier | IE9 event.key
 	  				/*[test]in unsigned long keyLocationArg*/3, //webkit event.keyIdentifier | IE9 event.location
 	  				/*[test]in boolean ctrlKeyArg*/true,        //webkit event.shiftKey | old webkit event.ctrlKey | IE9 event.modifiersList
@@ -687,17 +703,15 @@ var _Event_prototype = global["Event"].prototype
   , ovewrite_keyCode_which_charCode
 ;
 
-if(_Object_getOwnPropertyDescriptor) {
-	tmp = {};
-
+if(_Object_getOwnPropertyDescriptor) {//Modern browser
 	//IE9 has key property
-	_Event_prototype__native_key_getter = (_Object_getOwnPropertyDescriptor(_KeyboardEvent_prototype, "key") || tmp)["get"];
+	_Event_prototype__native_key_getter = getObjectPropertyGetter(_KeyboardEvent_prototype, "key");
 	//IE9 has key property
-	_Event_prototype__native_char_getter = (_Object_getOwnPropertyDescriptor(_KeyboardEvent_prototype, "char") || tmp)["get"];
+	_Event_prototype__native_char_getter = getObjectPropertyGetter(_KeyboardEvent_prototype, "char");
 	//IE9 has key property
-	_Event_prototype__native_location_getter = (_Object_getOwnPropertyDescriptor(_KeyboardEvent_prototype, "location") || tmp)["get"];
+	_Event_prototype__native_location_getter = getObjectPropertyGetter(_KeyboardEvent_prototype, "location");
 	//IE9 doesn't allow overwrite "keyCode" and "charCode"
-	_Event_prototype__native_keyCode_getter = (_Object_getOwnPropertyDescriptor(_KeyboardEvent_prototype, "keyCode") || tmp)["get"];
+	_Event_prototype__native_keyCode_getter = getObjectPropertyGetter(_KeyboardEvent_prototype, "keyCode");
 }
 
 /*
