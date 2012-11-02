@@ -1,5 +1,4 @@
- /** DOM Keyboard Event Level 3 polyfill
-  * @license MIT License (c) copyright Egor Halimonenko (termi1uc1@gmail.com) */
+/** @license DOM Keyboard Event Level 3 polyfill | @version 0.4 | MIT License | github.com/termi */
 
 // ==ClosureCompiler==
 // @compilation_level ADVANCED_OPTIMIZATIONS
@@ -9,7 +8,7 @@
 // @check_types
 // ==/ClosureCompiler==
 /**
- * @version 0.3
+ * @version 0.4
  * TODO::
  * 0. refactoring and JSDoc's
  * 1. Bug fixing:
@@ -23,14 +22,33 @@
  * 3. http://www.w3.org/TR/DOM-Level-3-Events/#events-keyboard-event-order
  * 4. http://www.quirksmode.org/dom/events/keys.html
  * 5. http://stackoverflow.com/questions/9200589/keypress-malfunction-in-opera
+ * 6. http://code.google.com/p/closure-library/source/browse/trunk/closure/goog/events/keyhandler.js
 /*
 http://www.w3.org/TR/DOM-Level-3-Events/#events-KeyboardEvent
 http://dev.w3.org/2006/webapi/DOM-Level-3-Events/html/DOM3-Events.html#events-KeyboardEvent
 */
 
+ // [[[|||---=== GCC DEFINES START ===---|||]]]
+ /** @define {boolean} */
+ var __GCC__IS_DEBUG__ = false;
+ //IF __GCC__IS_DEBUG__ == true [
+ //0. Some errors in console
+ //1. Fix console From https://github.com/theshock/console-cap/blob/master/console.js
+ //]
+
+/** @define {boolean} */
+var __GCC__ECMA_SCRIPT_SHIMS__ = false;
+//IF __GCC__ECMA_SCRIPT_SHIMS__ == true [
+    //TODO::
+//]
+var __GCC__NEW_KEYBOARD_EVENTS_PROPOSAL__ = true;
+//more info: http://lists.w3.org/Archives/Public/www-dom/2012JulSep/0108.html
+//]
+// [[[|||---=== GCC DEFINES END ===---|||]]]
+
 if(!function(global) {
 	try {
-		return ("key" in new global["KeyboardEvent"]("keyup"));
+		return (new global["KeyboardEvent"]("keyup", {"key" : "a"}))["key"] == "a";
 	}
 	catch(__e__) {
 		return false;
@@ -412,6 +430,37 @@ for(__i = 135 ; __i > 111 ; --__i)
 
 //Special
 
+if(__GCC__NEW_KEYBOARD_EVENTS_PROPOSAL__) {
+    VK_COMMON[219] = {// х: '[' and '{'
+        _keyCode : 91
+        , _shiftKeyCode : 123
+    };
+    VK_COMMON[221] = {// ъ: '[' and '{'
+        _keyCode : 93
+        , _shiftKeyCode : 125
+    };
+    VK_COMMON[222] = {// э: '"' and '''
+        _keyCode : 39
+        , _shiftKeyCode : 34
+    };
+    VK_COMMON[192] = {// ё: '`' and '~'
+        _keyCode : 96
+        , _shiftKeyCode : 126
+    };
+    VK_COMMON[191] = {// .: '/' and '?'
+        _keyCode : 47
+        , _shiftKeyCode : 63
+    };
+    VK_COMMON[190] = {// ю: '.' and '>'
+        _keyCode : 46
+        , _shiftKeyCode : 62
+    };
+    VK_COMMON[188] = {// б: ',' and '<'
+        _keyCode : 44
+        , _shiftKeyCode : 60
+    };
+}
+
 if(global["opera"]) {// Opera special cases
 	//TODO: for Win only?
 	_NEED_KEYCODE_BUGFIX = true;
@@ -701,15 +750,19 @@ var _Event_prototype = global["Event"].prototype
   , canOverwrite_keyCode
 
   , ovewrite_keyCode_which_charCode
+
+  , testKeyboardEvent = function() { try {return this && new this("keyup", {"key" : "a", "char" : "b"}) || {}} catch(e){ return {}} }.call(global["KeyboardEvent"])
+
+  , newKeyboadrEvent_key_property_proposal__getKey_
 ;
 
 if(_Object_getOwnPropertyDescriptor) {//Modern browser
-	//IE9 has key property
-	_Event_prototype__native_key_getter = getObjectPropertyGetter(_KeyboardEvent_prototype, "key");
-	//IE9 has key property
-	_Event_prototype__native_char_getter = getObjectPropertyGetter(_KeyboardEvent_prototype, "char");
-	//IE9 has key property
-	_Event_prototype__native_location_getter = getObjectPropertyGetter(_KeyboardEvent_prototype, "location");
+	//IE9 has key property in KeyboardEvent.prototype otherwise Opera has no properties in KeyboardEvent.prototype
+	_Event_prototype__native_key_getter = getObjectPropertyGetter(_KeyboardEvent_prototype, "key") || getObjectPropertyGetter(testKeyboardEvent, "key");
+	//IE9 has char property in KeyboardEvent.prototype otherwise Opera has no properties in KeyboardEvent.prototype
+	_Event_prototype__native_char_getter = getObjectPropertyGetter(_KeyboardEvent_prototype, "char") || getObjectPropertyGetter(testKeyboardEvent, "char");
+	//IE9 has location property in KeyboardEvent.prototype otherwise Opera has no properties in KeyboardEvent.prototype
+	_Event_prototype__native_location_getter = getObjectPropertyGetter(_KeyboardEvent_prototype, "location") || getObjectPropertyGetter(testKeyboardEvent, "location");
 	//IE9 doesn't allow overwrite "keyCode" and "charCode"
 	_Event_prototype__native_keyCode_getter = getObjectPropertyGetter(_KeyboardEvent_prototype, "keyCode");
 }
@@ -944,6 +997,24 @@ else {
 	}*/
 }
 
+if(__GCC__NEW_KEYBOARD_EVENTS_PROPOSAL__) {
+    /**
+     * @this {Event}
+     * @param {string} originalKey
+     * */
+    newKeyboadrEvent_key_property_proposal__getKey_ = function(originalKey) {
+        originalKey = originalKey || "";
+        if(originalKey.length > 1) {//fast IS SPECIAL KEY
+            return originalKey;
+        }
+
+        var vkCommon = VK_COMMON[this.keyCode]
+            , _keyCode = vkCommon && (this.shiftKey && vkCommon._shiftKeyCode || vkCommon._keyCode) || this.keyCode < 91 && this.keyCode > 64 && this.keyCode
+        ;
+
+        return (_keyCode && String.fromCharCode(_keyCode) || originalKey).toLowerCase()
+    }
+}
 
 function _helper_isRight_keyIdentifier(_keyIdentifier) {
 	return _keyIdentifier && !(_keyIdentifier in FAILED_KEYIDENTIFIER) && _keyIdentifier.substring(0, 2) !== "U+";
@@ -955,9 +1026,15 @@ _Object_defineProperty(_KeyboardEvent_prototype, "key", {
 	"get" : function() {
 		var thisObj = this;
 
-		if(_Event_prototype__native_key_getter) {//IE9
+		if(_Event_prototype__native_key_getter) {//IE9 & Opera
 			thisObj["__key"] = true;//just an indicator
-			return _Event_prototype__native_key_getter.call(thisObj);
+
+            if(__GCC__NEW_KEYBOARD_EVENTS_PROPOSAL__) {
+                return newKeyboadrEvent_key_property_proposal__getKey_.call(this, _Event_prototype__native_key_getter.call(thisObj));
+            }
+            else {
+			    return _Event_prototype__native_key_getter.call(thisObj);
+            }
 		}
 
 		if("__key" in thisObj)return thisObj["__key"];
@@ -1084,7 +1161,7 @@ function _keyDownHandler(e) {
 		["which", "keyCode", "charCode"].forEach(ovewrite_keyCode_which_charCode, {"e" : e, "k" : vkCommon._keyCode});
 	}*/
 
-	if(special || vkCommon && vkCommon._key !== 0 || e["__key"]) {
+    if(special || vkCommon && vkCommon._key !== 0 || e["__key"]) {
 		_["_noneed"] = true;
 
 		listener = this._listener;
@@ -1100,7 +1177,7 @@ function _keyDownHandler(e) {
 	}
 	else {
 		_["_noneed"] = false;
-		_[_shim_event_keyCodeUUID] = _keyCode;
+        _[_shim_event_keyCodeUUID] = _keyCode;
 
 		//Fix Webkit keyLocation bug ("i", "o" and others keys "keyLocation" in 'keypress' event == 3. Why?)
 		if("keyLocation" in e) {//TODO:: tests
@@ -1145,9 +1222,16 @@ function _keyDown_via_keyPress_Handler(e) {
 			_event["__keyCode"] = _keyCode;
 		}
 		_event["__location"] = _getter_KeyboardEvent_location.call(_event);
-	
+
+        if(__GCC__NEW_KEYBOARD_EVENTS_PROPOSAL__) {
+            if(_keyCode < 91 &&_keyCode > 64 && e.keyCode != _keyCode && !VK_COMMON[e.keyCode]) {
+                _ = (VK_COMMON[e.keyCode] || (_ = VK_COMMON[e.keyCode] = {}));
+                _._keyCode = _keyCode;
+            }
+        }
+
 		if(!_Event_prototype__native_key_getter) {//Not IE9
-	        _ = (VK_COMMON[_keyCode] || (_ = VK_COMMON[_keyCode] = {}));
+            _ = (VK_COMMON[_keyCode] || (_ = VK_COMMON[_keyCode] = {}));
 	        e.shiftKey ? (_._charShifted = _event["char"]) : (_._char = _event["char"]);
 	        _._key = _._charShifted && _._char && "" || 0;//_._key == 0 - filter in _keyDownHandler
 	    }
@@ -1251,7 +1335,7 @@ function _keyDown_via_keyPress_Handler(e) {
 
 //cleaning
 _DOM_KEY_LOCATION_LEFT = _DOM_KEY_LOCATION_RIGHT = _DOM_KEY_LOCATION_NUMPAD = _DOM_KEY_LOCATION_MOBILE = _DOM_KEY_LOCATION_JOYSTICK = 
-	_Object_getOwnPropertyDescriptor = tmp =
+	_Object_getOwnPropertyDescriptor = tmp = testKeyboardEvent =
 	void 0;
 
 //export

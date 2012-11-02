@@ -3,7 +3,7 @@ Implementation of [DOM 3 Keyboard Events](http://www.w3.org/TR/DOM-Level-3-Event
 
 ## Status
 
-	Beta
+	Beta 2
 
 ## Demo
 
