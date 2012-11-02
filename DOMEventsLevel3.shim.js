@@ -1057,6 +1057,10 @@ _Object_defineProperty(_KeyboardEvent_prototype, "key", {
 			;
 		}
 
+		if(__GCC__NEW_KEYBOARD_EVENTS_PROPOSAL__) {
+			value = newKeyboadrEvent_key_property_proposal__getKey_.call(this, value);
+		}
+
 		return this["__key"] = value;
 	}
 });
