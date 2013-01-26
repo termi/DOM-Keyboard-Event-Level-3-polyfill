@@ -99,7 +99,7 @@
                         </td>
                         <td colspan="3">
                             <label id="keysDisplay_option_preventDefault" itemprop="option.preventDefault">
-                                <input type="checkbox" />
+                                <input type="checkbox" checked="checked" />
                                 prevent default
                             </label>
                         </td>
@@ -116,7 +116,7 @@
                         <td colspan="3">
                             <label id="keysDisplay_option_output" itemprop="option.output" itemscope="">
                                 <div style="float:left;width:35%">
-                                    <input type="checkbox" checked="checked" />
+                                    <input type="checkbox" />
                                     output
                                 </div>
                                 <div style="float:left;width:65%">
@@ -217,7 +217,8 @@ var keyboardTestApplication = new Application({
   		"keyLocation",
   		"keyIdentifier",
 
-  		"detail"
+  		"detail",
+		"isTrusted"
     ],
 
 	createDisplayTable: function(template) {
