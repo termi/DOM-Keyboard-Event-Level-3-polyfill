@@ -20,7 +20,7 @@ Implementation of [DOM 3 Keyboard Events](http://www.w3.org/TR/DOM-Level-3-Event
 
 * Normalize Keyroard Events across modern browsers
 * Implement ["map event.key to character values of a normal QUERTY (en-US) layout"](https://www.w3.org/Bugs/Public/show_bug.cgi?id=19827) proposal
-* Implement [KeyboardEvent constructor](http://html5labs.com/dom4events/#constructors-keyboardevent)
+* Implement [KeyboardEvent constructor](http://www.w3.org/TR/DOM-Level-3-Events/#idl-interface-KeyboardEvent-initializers)
 
 ## TODO
 
