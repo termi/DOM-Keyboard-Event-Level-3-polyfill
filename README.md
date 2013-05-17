@@ -1,6 +1,10 @@
 # DOM Keyboard Event Level 3 polyfill
 Implementation of [DOM 3 Keyboard Events](http://www.w3.org/TR/DOM-Level-3-Events/#events-keyboardevents)
 
+## Important note:
+
+	Current version conflicted with the latest w3c spec. New version will coming as soon as I get free time
+
 ## Status
 
 	Beta 3

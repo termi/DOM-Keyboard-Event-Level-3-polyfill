@@ -1,4 +1,4 @@
-/** @license DOM Keyboard Event Level 3 polyfill | @version 0.4.3 | MIT License | github.com/termi */
+/** @license DOM Keyboard Event Level 3 polyfill | @version 0.4.4 | MIT License | github.com/termi */
 
 // ==ClosureCompiler==
 // @compilation_level ADVANCED_OPTIMIZATIONS
@@ -171,8 +171,10 @@ if( !function( global ) {
 
 		, _getter_KeyboardEvent_location
 
-		, _initKeyboardEvent_type = (function( e ) {
+		, _initKeyboardEvent_type = (function( _createEvent ) {
 			try {
+				var e = _createEvent.call(document,  "KeyboardEvent" );//Old browsers unsupported "KeyboardEvent"
+
 				e.initKeyboardEvent(
 					"keyup" // in DOMString typeArg
 					, false // in boolean canBubbleArg
@@ -205,7 +207,7 @@ if( !function( global ) {
 			catch ( __e__ ) {
 				return 0
 			}
-		})( document.createEvent( "KeyboardEvent" ) )
+		})( document.createEvent )
 
 		, canOverwrite_keyCode
 
@@ -996,7 +998,12 @@ if( !function( global ) {
 		}
 
 
-		if( !success_init )e.initEvent( type, _bubbles, _cancelable, global );
+		if( !success_init ) {
+			e.initEvent( type, _bubbles, _cancelable, global );
+			e["__char"] = _char;
+			e["__key"] = _key;
+			e["__location"] = _location;
+		}
 
 		for( _prop_name in _keyboardEvent_properties_dictionary )if( _hasOwnProperty( _keyboardEvent_properties_dictionary, _prop_name ) ) {
 			if( e[_prop_name] != localDict[_prop_name] ) {
@@ -1174,7 +1181,12 @@ if( !function( global ) {
 
 			if( !(thisObj.type in KEYBOARD_EVENTS) )return;
 
-			if( thisObj.ctrlKey === true )return "";
+			if( thisObj.ctrlKey
+				|| thisObj.altKey
+				|| thisObj.metaKey
+			) {
+				return "";
+			}
 
 			if( "__char" in thisObj )return thisObj["__char"];
 
@@ -1283,12 +1295,10 @@ if( !function( global ) {
 		 ["which", "keyCode", "charCode"].forEach(ovewrite_keyCode_which_charCode, {"e" : e, "k" : vkCommon._keyCode});
 		 }*/
 
-		if(
-			e.ctrlKey//Special events
-			|| (!_IS_MAC && e.altKey)//TODO:: browser detection?
-			|| e["__key"]
+		if( // passed event if the is no need to transform it
+			e.ctrlKey || e.altKey || e.metaKey//Special events
 			|| ((vkNonCharacter = VK__NON_CHARACTER_KEYS[_keyCode]) && vkNonCharacter._key !== 0)
-			|| e.isTrusted === false // Synthetic event
+			|| e["__key"] || e.isTrusted === false // Synthetic event
 		) {
 			listener = this._listener;
 
@@ -1550,5 +1560,5 @@ if( !function( global ) {
 	//cleaning
 	_DOM_KEY_LOCATION_LEFT = _DOM_KEY_LOCATION_RIGHT = _DOM_KEY_LOCATION_NUMPAD = _DOM_KEY_LOCATION_MOBILE = _DOM_KEY_LOCATION_JOYSTICK =
 		_Object_getOwnPropertyDescriptor = getObjectPropertyGetter = tmp = testKeyboardEvent = _KeyboardEvent = _KeyboardEvent_prototype = __i =
-			_Event_prototype = null;
+			_Event_prototype = _userAgent_ = _BROWSER = _IS_MAC = null;
 }.call( this );
