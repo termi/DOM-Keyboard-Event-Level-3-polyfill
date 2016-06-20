@@ -44,6 +44,6 @@ Implementation of [DOM 3 Keyboard Events](http://www.w3.org/TR/DOM-Level-3-Event
 * Theoretically polyfill would work in any browser with `addEventListener` support
 * You can bring IE6-8 support with [DOM and ES5 shim](http://github.com/termi/ES5-DOM-SHIM) (need tests)
 
-## Licence
+## License
 	
 	MIT
